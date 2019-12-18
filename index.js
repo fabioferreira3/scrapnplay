@@ -4,18 +4,13 @@ const robots = {
 };
 
 async function start() {
-    const content = {};
+    const content = {
+        maximumSentences: 7
+    };
     content.searchTerm = askAndReturnSearchTerm();
     content.prefix = askAndReturnPrefix();
-    content.sourceContentOriginal = '';
-    content.sourceContentSanitized = '';
-    content.sentences = [
-        {
-            text: '',
-            keywords: [],
-            images: []
-        }
-    ];
+    content.lang = askAndReturnLanguage();
+    content.sentences = [];
 
     await robots.text(content);
 
@@ -30,7 +25,14 @@ async function start() {
         return prefixes[selectedPrefixIndex];
     }
 
-    console.log(content);
+    function askAndReturnLanguage() {
+        const prefixes = ['en', 'pt'];
+        const selectedPrefixIndex = readline.keyInSelect(prefixes, 'Choose one option:');
+
+        return prefixes[selectedPrefixIndex];
+    }
+
+    console.log(JSON.stringify(content, null, 4));
 
 };
 

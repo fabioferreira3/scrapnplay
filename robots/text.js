@@ -1,17 +1,27 @@
 const algorithmia = require('algorithmia');
-const apiKey = require('../credentials/algorithmia.json').apiKey;
 const sentenceBoundaryDetection = require('sbd');
+const NaturalLanguageUnderstandingV1 = require('ibm-watson/natural-language-understanding/v1');
+const { IamAuthenticator } = require('ibm-watson/auth');
+
+const algorithmiaApiKey = require('../credentials/algorithmia.json').apiKey;
+const watsonApiKey = require('../credentials/watson.json').apikey;
+const watsonUrl = require('../credentials/watson.json').url;
 
 async function robot(content) {
     await fetchContentFromWikipedia(content);
     sanitizeContent(content);
     breakContentIntoSentences(content);
+    limitMaximumSentences(content);
+    await fetchKeywordsOfAllSentences(content);
 
     async function fetchContentFromWikipedia() {
-        const algorithmiaAutenticated = algorithmia(apiKey);
+        const algorithmiaAutenticated = algorithmia(algorithmiaApiKey);
         const wikipediaAlgorithm = algorithmiaAutenticated.algo('web/WikipediaParser/0.1.2');
         console.log('Please wait, fetching data from wikipedia...');
-        const wikipediaResponse = await wikipediaAlgorithm.pipe(content.searchTerm);
+        const wikipediaResponse = await wikipediaAlgorithm.pipe({
+            "lang": content.lang,
+            "articleName": content.searchTerm
+        });
         const wikipediaContent = wikipediaResponse.get();
 
         content.sourceContentOriginal = wikipediaContent.content;
@@ -48,6 +58,40 @@ async function robot(content) {
                 images: []
             });
         })
+    }
+
+    function limitMaximumSentences(content) {
+        content.sentences = content.sentences.slice(0, content.maximumSentences);
+    }
+
+    async function fetchKeywordsOfAllSentences(content) {
+        for (const sentence of content.sentences) {
+            sentence.keywords = await fetchWatsonAndReturnKeywords(sentence.text);
+        }
+    }
+
+    async function fetchWatsonAndReturnKeywords(sentence) {
+        const nlu = new NaturalLanguageUnderstandingV1({
+            version: '2019-07-12',
+            authenticator: new IamAuthenticator({
+                apikey: watsonApiKey,
+            }),
+            url: watsonUrl,
+        });
+
+        const analyzeParams = {
+            'text': sentence,
+            'features': {
+                'keywords': {}
+            }
+        };
+        console.log('Please wait while I talk to Watson...');
+        const analysisResult = await nlu.analyze(analyzeParams);
+        const keywords = analysisResult.result.keywords.map(keyword => {
+            return keyword.text;
+        });
+
+        return keywords;
     }
 }
 
