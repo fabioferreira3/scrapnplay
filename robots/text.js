@@ -7,12 +7,19 @@ const algorithmiaApiKey = require('../credentials/algorithmia.json').apiKey;
 const watsonApiKey = require('../credentials/watson.json').apikey;
 const watsonUrl = require('../credentials/watson.json').url;
 
-async function robot(content) {
+const state = require('./state.js');
+
+async function robot() {
+
+    const content = state.load();
     await fetchContentFromWikipedia(content);
     sanitizeContent(content);
     breakContentIntoSentences(content);
     limitMaximumSentences(content);
+    console.log('Please wait while I talk to Watson...');
     await fetchKeywordsOfAllSentences(content);
+
+    state.save(content);
 
     async function fetchContentFromWikipedia() {
         const algorithmiaAutenticated = algorithmia(algorithmiaApiKey);
@@ -85,7 +92,6 @@ async function robot(content) {
                 'keywords': {}
             }
         };
-        console.log('Please wait while I talk to Watson...');
         const analysisResult = await nlu.analyze(analyzeParams);
         const keywords = analysisResult.result.keywords.map(keyword => {
             return keyword.text;
